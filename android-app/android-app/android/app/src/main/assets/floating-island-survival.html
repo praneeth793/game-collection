@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floating Island Survival</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* HUD Overlay */
+        #hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Crosshair */
+        #crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+        }
+
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        #crosshair::before {
+            width: 2px;
+            height: 20px;
+            left: 9px;
+            top: 0;
+        }
+
+        #crosshair::after {
+            width: 20px;
+            height: 2px;
+            top: 9px;
+            left: 0;
+        }
+
+        /* Health Bar */
+        #healthContainer {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 200px;
+            height: 25px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #fff;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        #healthBar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #ff4444, #ff6666);
+            transition: width 0.3s ease;
+        }
+
+        #healthText {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 12px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Score Display */
+        #scoreContainer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #00ffff;
+            border-radius: 5px;
+            color: #00ffff;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #00ffff;
+        }
+
+        /* Start Screen */
+        #startScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        #startScreen h1 {
+            color: #00ffff;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        #startScreen p {
+            color: #aaa;
+            font-size: 16px;
+            margin-bottom: 10px;
+            text-align: center;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        #startScreen .controls {
+            color: #fff;
+            font-size: 18px;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        #startScreen .controls span {
+            display: block;
+            margin: 5px 0;
+        }
+
+        #startButton {
+            padding: 15px 50px;
+            font-size: 20px;
+            background: linear-gradient(135deg, #00ffff, #00cccc);
+            border: none;
+            border-radius: 30px;
+            color: #1a1a2e;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 30px;
+            pointer-events: auto;
+        }
+
+        #startButton:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+        }
+
+        /* Game Over Screen */
+        #gameOverScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        #gameOverScreen h1 {
+            color: #ff4444;
+            font-size: 60px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px #ff4444;
+        }
+
+        #finalScore {
+            color: #00ffff;
+            font-size: 32px;
+            margin-bottom: 30px;
+        }
+
+        #restartButton {
+            padding: 15px 50px;
+            font-size: 20px;
+            background: linear-gradient(135deg, #ff4444, #cc0000);
+            border: none;
+            border-radius: 30px;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #restartButton:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.5);
+        }
+
+        /* Damage Flash */
+        #damageFlash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 0, 0, 0.3);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s ease;
+            z-index: 150;
+        }
+
+        /* Instructions */
+        #instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div id="healthContainer">
+            <div id="healthBar"></div>
+            <span id="healthText">100 HP</span>
+        </div>
+        <div id="scoreContainer">
+            💎 <span id="score">0</span>
+        </div>
+        <div id="crosshair"></div>
+    </div>
+
+    <!-- Damage Flash Effect -->
+    <div id="damageFlash"></div>
+
+    <!-- Start Screen -->
+    <div id="startScreen">
+        <h1>🏝️ Floating Island Survival</h1>
+        <p>Explore the mysterious floating islands, collect glowing crystals, and survive against the guardians!</p>
+        <div class="controls">
+            <span>🎮 W A S D - Move</span>
+            <span>🚀 SPACE - Jump</span>
+            <span>🏃 SHIFT - Sprint</span>
+            <span>🖱️ MOUSE - Look Around</span>
+            <span>🎯 Collect Crystals - Score Points</span>
+            <span>⚠️ Avoid Guardians - They Protect the Islands!</span>
+        </div>
+        <button id="startButton">START GAME</button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameOverScreen">
+        <h1>GAME OVER</h1>
+        <div id="finalScore">Crystals Collected: 0</div>
+        <button id="restartButton">PLAY AGAIN</button>
+    </div>
+
+    <!-- Instructions -->
+    <div id="instructions">Press ESC to show cursor</div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // ==========================================
+        // AUDIO SYSTEM (Web Audio API)
+        // ==========================================
+        class AudioSystem {
+            constructor() {
+                this.context = null;
+                this.initialized = false;
+            }
+
+            init() {
+                if (this.initialized) return;
+                try {
+                    this.context = new (window.AudioContext || window.webkitAudioContext)();
+                    this.initialized = true;
+                } catch (e) {
+                    console.log('Audio not supported');
+                }
+            }
+
+            playTone(frequency, duration, type = 'sine', volume = 0.3) {
+                if (!this.context) return;
+
+                const oscillator = this.context.createOscillator();
+                const gainNode = this.context.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(this.context.destination);
+
+                oscillator.type = type;
+                oscillator.frequency.setValueAtTime(frequency, this.context.currentTime);
+
+                gainNode.gain.setValueAtTime(volume, this.context.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + duration);
+
+                oscillator.start(this.context.currentTime);
+                oscillator.stop(this.context.currentTime + duration);
+            }
+
+            playCollect() {
+                this.playTone(880, 0.1, 'sine', 0.3);
+                setTimeout(() => this.playTone(1100, 0.15, 'sine', 0.3), 100);
+            }
+
+            playJump() {
+                this.playTone(300, 0.1, 'triangle', 0.2);
+                setTimeout(() => this.playTone(400, 0.1, 'triangle', 0.2), 50);
+            }
+
+            playDamage() {
+                this.playTone(150, 0.2, 'sawtooth', 0.4);
+                setTimeout(() => this.playTone(100, 0.3, 'sawtooth', 0.3), 100);
+            }
+
+            playWin() {
+                const notes = [523, 659, 784, 1047];
+                notes.forEach((freq, i) => {
+                    setTimeout(() => this.playTone(freq, 0.2, 'square', 0.2), i * 150);
+                });
+            }
+        }
+
+        // ==========================================
+        // GAME CLASS
+        // ==========================================
+        class FloatingIslandGame {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.audio = new AudioSystem();
+
+                // Game State
+                this.isPlaying = false;
+                this.score = 0;
+                this.health = 100;
+
+                // Player State
+                this.player = {
+                    position: new THREE.Vector3(0, 10, 0),
+                    velocity: new THREE.Vector3(0, 0, 0),
+                    onGround: false,
+                    speed: 15,
+                    sprintMultiplier: 1.5,
+                    jumpForce: 20,
+                    gravity: -50,
+                    height: 2,
+                    radius: 0.5
+                };
+
+                // Input State
+                this.keys = {};
+                this.mouseX = 0;
+                this.mouseY = 0;
+
+                // Camera
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.camera.rotation.order = 'YXZ';
+                this.camera.rotation.y = 0;
+                this.camera.rotation.x = 0;
+
+                // Three.js Setup
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x87CEEB);
+                this.scene.fog = new THREE.Fog(0x87CEEB, 50, 200);
+
+                this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+                // Game Entities
+                this.platforms = [];
+                this.crystals = [];
+                this.enemies = [];
+
+                // Clock for delta time
+                this.clock = new THREE.Clock();
+
+                this.init();
+            }
+
+            init() {
+                this.setupLights();
+                this.setupEventListeners();
+                this.generateWorld();
+                this.animate();
+            }
+
+            setupLights() {
+                // Ambient light
+                const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+                this.scene.add(ambient);
+
+                // Directional light (sun)
+                const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+                sun.position.set(50, 100, 50);
+                sun.castShadow = true;
+                sun.shadow.mapSize.width = 2048;
+                sun.shadow.mapSize.height = 2048;
+                sun.shadow.camera.near = 0.5;
+                sun.shadow.camera.far = 500;
+                sun.shadow.camera.left = -100;
+                sun.shadow.camera.right = 100;
+                sun.shadow.camera.top = 100;
+                sun.shadow.camera.bottom = -100;
+                this.scene.add(sun);
+
+                // Hemisphere light for better ambient
+                const hemi = new THREE.HemisphereLight(0x87CEEB, 0x4CAF50, 0.4);
+                this.scene.add(hemi);
+            }
+
+            setupEventListeners() {
+                // Keyboard
+                document.addEventListener('keydown', (e) => {
+                    this.keys[e.code] = true;
+                });
+
+                document.addEventListener('keyup', (e) => {
+                    this.keys[e.code] = false;
+                });
+
+                // Mouse movement
+                document.addEventListener('mousemove', (e) => {
+                    if (document.pointerLockElement === this.canvas) {
+                        const sensitivity = 0.002;
+                        this.camera.rotation.y -= e.movementX * sensitivity;
+                        this.camera.rotation.x -= e.movementY * sensitivity;
+                        this.camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera.rotation.x));
+                    }
+                });
+
+                // Pointer lock
+                this.canvas.addEventListener('click', () => {
+                    if (this.isPlaying && document.pointerLockElement !== this.canvas) {
+                        this.canvas.requestPointerLock();
+                    }
+                });
+
+                // Start button
+                document.getElementById('startButton').addEventListener('click', () => {
+                    this.audio.init();
+                    this.startGame();
+                });
+
+                // Restart button
+                document.getElementById('restartButton').addEventListener('click', () => {
+                    this.restartGame();
+                });
+
+                // Window resize
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            }
+
+            generateWorld() {
+                // Clear existing entities
+                this.platforms.forEach(p => this.scene.remove(p));
+                this.crystals.forEach(c => this.scene.remove(c.mesh));
+                this.enemies.forEach(e => this.scene.remove(e.mesh));
+                this.platforms = [];
+                this.crystals = [];
+                this.enemies = [];
+
+                // Create main platform (starting area)
+                this.createPlatform(0, 0, 0, 30, 8, 30, true);
+
+                // Generate random platforms
+                const platformCount = 15 + Math.floor(Math.random() * 10);
+
+                for (let i = 0; i < platformCount; i++) {
+                    const angle = (i / platformCount) * Math.PI * 2 + Math.random() * 0.5;
+                    const distance = 40 + Math.random() * 60;
+                    const x = Math.cos(angle) * distance;
+                    const z = Math.sin(angle) * distance;
+                    const y = (Math.random() - 0.5) * 20;
+                    const width = 8 + Math.random() * 12;
+                    const depth = 8 + Math.random() * 12;
+
+                    this.createPlatform(x, y, z, width, 5 + Math.random() * 5, depth);
+
+                    // Add crystals
+                    if (Math.random() > 0.3) {
+                        this.createCrystal(x, y + 3, z);
+                    }
+
+                    // Add enemies on larger platforms
+                    if (width > 12 && Math.random() > 0.5) {
+                        this.createEnemy(x, y + 2, z);
+                    }
+                }
+            }
+
+            createPlatform(x, y, z, width, height, depth, isMain = false) {
+                // Create platform geometry
+                const geometry = new THREE.BoxGeometry(width, height, depth);
+
+                // Create gradient-like material
+                const material = new THREE.MeshStandardMaterial({
+                    color: isMain ? 0x4CAF50 : 0x3d8b40,
+                    roughness: 0.8,
+                    metalness: 0.1
+                });
+
+                const platform = new THREE.Mesh(geometry, material);
+                platform.position.set(x, y, z);
+                platform.castShadow = true;
+                platform.receiveShadow = true;
+
+                // Store platform data for collision
+                platform.userData = {
+                    isPlatform: true,
+                    bounds: {
+                        minX: x - width / 2,
+                        maxX: x + width / 2,
+                        minY: y - height / 2,
+                        maxY: y + height / 2,
+                        minZ: z - depth / 2,
+                        maxZ: z + depth / 2
+                    }
+                };
+
+                this.scene.add(platform);
+                this.platforms.push(platform);
+
+                // Add decorative elements on main platform
+                if (isMain) {
+                    this.addDecorations(x, y + height / 2, z, width, depth);
+                }
+            }
+
+            addDecorations(x, y, z, width, depth) {
+                // Add some small trees/plants
+                const treeCount = 3 + Math.floor(Math.random() * 3);
+
+                for (let i = 0; i < treeCount; i++) {
+                    const tx = x + (Math.random() - 0.5) * (width - 4);
+                    const tz = z + (Math.random() - 0.5) * (depth - 4);
+
+                    // Tree trunk
+                    const trunkGeom = new THREE.CylinderGeometry(0.2, 0.3, 2, 8);
+                    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+                    const trunk = new THREE.Mesh(trunkGeom, trunkMat);
+                    trunk.position.set(tx, y + 1, tz);
+                    trunk.castShadow = true;
+                    this.scene.add(trunk);
+
+                    // Tree foliage
+                    const leavesGeom = new THREE.ConeGeometry(1.5, 3, 8);
+                    const leavesMat = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+                    const leaves = new THREE.Mesh(leavesGeom, leavesMat);
+                    leaves.position.set(tx, y + 4, tz);
+                    leaves.castShadow = true;
+                    this.scene.add(leaves);
+                }
+            }
+
+            createCrystal(x, y, z) {
+                const geometry = new THREE.OctahedronGeometry(0.5, 0);
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0x00ffff,
+                    emissive: 0x00ffff,
+                    emissiveIntensity: 0.5,
+                    transparent: true,
+                    opacity: 0.9
+                });
+
+                const crystal = new THREE.Mesh(geometry, material);
+                crystal.position.set(x, y, z);
+                crystal.castShadow = true;
+
+                // Add point light for glow effect
+                const light = new THREE.PointLight(0x00ffff, 1, 5);
+                light.position.set(0, 0, 0);
+                crystal.add(light);
+
+                this.scene.add(crystal);
+                this.crystals.push({
+                    mesh: crystal,
+                    baseY: y,
+                    collected: false
+                });
+            }
+
+            createEnemy(x, y, z) {
+                // Create enemy geometry (low-poly guardian)
+                const geometry = new THREE.IcosahedronGeometry(1.2, 0);
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0xff5252,
+                    emissive: 0xff0000,
+                    emissiveIntensity: 0.3,
+                    roughness: 0.5,
+                    metalness: 0.5
+                });
+
+                const enemy = new THREE.Mesh(geometry, material);
+                enemy.position.set(x, y, z);
+                enemy.castShadow = true;
+
+                // Add eyes
+                const eyeGeom = new THREE.SphereGeometry(0.2, 8, 8);
+                const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+
+                const leftEye = new THREE.Mesh(eyeGeom, eyeMat);
+                leftEye.position.set(-0.4, 0.2, 1);
+                enemy.add(leftEye);
+
+                const rightEye = new THREE.Mesh(eyeGeom, eyeMat);
+                rightEye.position.set(0.4, 0.2, 1);
+                enemy.add(rightEye);
+
+                this.scene.add(enemy);
+
+                this.enemies.push({
+                    mesh: enemy,
+                    baseY: y,
+                    velocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 2,
+                        0,
+                        (Math.random() - 0.5) * 2
+                    ),
+                    state: 'patrol',
+                    patrolTimer: 0,
+                    speed: 8
+                });
+            }
+
+            startGame() {
+                document.getElementById('startScreen').style.display = 'none';
+                document.getElementById('gameOverScreen').style.display = 'none';
+                this.isPlaying = true;
+                this.canvas.requestPointerLock();
+            }
+
+            restartGame() {
+                this.score = 0;
+                this.health = 100;
+                this.player.position.set(0, 10, 0);
+                this.player.velocity.set(0, 0, 0);
+                this.player.onGround = false;
+                this.camera.rotation.set(0, 0, 0);
+                this.updateHUD();
+                this.generateWorld();
+                this.startGame();
+            }
+
+            gameOver() {
+                this.isPlaying = false;
+                document.exitPointerLock();
+                document.getElementById('gameOverScreen').style.display = 'flex';
+                document.getElementById('finalScore').textContent = `Crystals Collected: ${this.score}`;
+            }
+
+            updateHUD() {
+                document.getElementById('healthBar').style.width = `${this.health}%`;
+                document.getElementById('healthText').textContent = `${Math.max(0, this.health)} HP`;
+                document.getElementById('score').textContent = this.score;
+            }
+
+            showDamageFlash() {
+                const flash = document.getElementById('damageFlash');
+                flash.style.opacity = '1';
+                setTimeout(() => {
+                    flash.style.opacity = '0';
+                }, 100);
+            }
+
+            takeDamage(amount) {
+                this.health -= amount;
+                this.showDamageFlash();
+                this.audio.playDamage();
+                this.updateHUD();
+
+                if (this.health <= 0) {
+                    this.gameOver();
+                }
+            }
+
+            collectCrystal(index) {
+                const crystal = this.crystals[index];
+                if (crystal.collected) return;
+
+                crystal.collected = true;
+                this.scene.remove(crystal.mesh);
+                this.score++;
+                this.audio.playCollect();
+                this.updateHUD();
+
+                // Spawn new crystal elsewhere
+                if (Math.random() > 0.5) {
+                    const platform = this.platforms[Math.floor(Math.random() * this.platforms.length)];
+                    if (platform) {
+                        const pos = platform.userData.bounds;
+                        this.createCrystal(
+                            pos.minX + Math.random() * (pos.maxX - pos.minX),
+                            pos.maxY + 3,
+                            pos.minZ + Math.random() * (pos.maxZ - pos.minZ)
+                        );
+                    }
+                }
+            }
+
+            updatePlayer(delta) {
+                if (!this.isPlaying) return;
+
+                const p = this.player;
+                const speed = p.speed * (this.keys['ShiftLeft'] || this.keys['ShiftRight'] ? p.sprintMultiplier : 1);
+
+                // Get forward and right vectors from camera
+                const forward = new THREE.Vector3(0, 0, -1);
+                forward.applyQuaternion(this.camera.quaternion);
+                forward.y = 0;
+                forward.normalize();
+
+                const right = new THREE.Vector3(1, 0, 0);
+                right.applyQuaternion(this.camera.quaternion);
+                right.y = 0;
+                right.normalize();
+
+                // Calculate movement
+                const movement = new THREE.Vector3(0, 0, 0);
+
+                if (this.keys['KeyW']) movement.add(forward.clone().multiplyScalar(speed * delta));
+                if (this.keys['KeyS']) movement.add(forward.clone().multiplyScalar(-speed * delta));
+                if (this.keys['KeyD']) movement.add(right.clone().multiplyScalar(speed * delta));
+                if (this.keys['KeyA']) movement.add(right.clone().multiplyScalar(-speed * delta));
+
+                // Apply movement to velocity (horizontal)
+                p.velocity.x = movement.x / delta;
+                p.velocity.z = movement.z / delta;
+
+                // Jump
+                if (this.keys['Space'] && p.onGround) {
+                    p.velocity.y = p.jumpForce;
+                    p.onGround = false;
+                    this.audio.playJump();
+                }
+
+                // Apply gravity
+                p.velocity.y += p.gravity * delta;
+
+                // Update position
+                p.position.x += p.velocity.x * delta;
+                p.position.y += p.velocity.y * delta;
+                p.position.z += p.velocity.z * delta;
+
+                // Platform collision detection
+                p.onGround = false;
+
+                for (const platform of this.platforms) {
+                    const bounds = platform.userData.bounds;
+
+                    // Check if player is above platform
+                    if (p.position.x > bounds.minX - p.radius && p.position.x < bounds.maxX + p.radius &&
+                        p.position.z > bounds.minZ - p.radius && p.position.z < bounds.maxZ + p.radius) {
+
+                        // Check vertical collision (landing on top)
+                        if (p.position.y - p.height < bounds.maxY &&
+                            p.position.y > bounds.maxY - 1 &&
+                            p.velocity.y <= 0) {
+                            p.position.y = bounds.maxY + p.height;
+                            p.velocity.y = 0;
+                            p.onGround = true;
+                        }
+                    }
+                }
+
+                // Update camera position
+                this.camera.position.copy(p.position);
+                this.camera.position.y += p.height * 0.5;
+
+                // Fall detection
+                if (p.position.y < -50) {
+                    this.takeDamage(100);
+                }
+            }
+
+            updateCrystals(delta, time) {
+                // Animate crystals
+                this.crystals.forEach((crystal, index) => {
+                    if (crystal.collected) return;
+
+                    // Floating animation
+                    crystal.mesh.position.y = crystal.baseY + Math.sin(time * 2 + index) * 0.3;
+                    crystal.mesh.rotation.y += delta * 2;
+
+                    // Collection check
+                    const distance = this.player.position.distanceTo(crystal.mesh.position);
+                    if (distance < 2) {
+                        this.collectCrystal(index);
+                    }
+                });
+            }
+
+            updateEnemies(delta) {
+                this.enemies.forEach((enemy, index) => {
+                    const mesh = enemy.mesh;
+                    const bounds = mesh.position;
+
+                    // Floating animation
+                    mesh.position.y = enemy.baseY + Math.sin(this.clock.getElapsedTime() * 2 + index) * 0.5;
+
+                    // Rotate enemy
+                    mesh.rotation.x += delta * 0.5;
+                    mesh.rotation.z += delta * 0.3;
+
+                    // AI behavior
+                    const playerDistance = this.player.position.distanceTo(mesh.position);
+
+                    if (playerDistance < 30) {
+                        // Chase player
+                        enemy.state = 'chase';
+                        const direction = new THREE.Vector3()
+                            .subVectors(this.player.position, mesh.position)
+                            .normalize();
+
+                        enemy.velocity.x = direction.x * enemy.speed * delta;
+                        enemy.velocity.z = direction.z * enemy.speed * delta;
+                    } else {
+                        // Patrol
+                        enemy.state = 'patrol';
+                        enemy.patrolTimer += delta;
+
+                        if (enemy.patrolTimer > 3) {
+                            enemy.velocity = new THREE.Vector3(
+                                (Math.random() - 0.5) * 2,
+                                0,
+                                (Math.random() - 0.5) * 2
+                            ).normalize().multiplyScalar(enemy.speed * 0.3);
+                            enemy.patrolTimer = 0;
+                        }
+                    }
+
+                    // Move enemy
+                    mesh.position.x += enemy.velocity.x;
+                    mesh.position.z += enemy.velocity.z;
+
+                    // Keep enemy on platforms
+                    let onPlatform = false;
+                    for (const platform of this.platforms) {
+                        const pb = platform.userData.bounds;
+                        if (mesh.position.x > pb.minX && mesh.position.x < pb.maxX &&
+                            mesh.position.z > pb.minZ && mesh.position.z < pb.maxZ) {
+                            onPlatform = true;
+                            break;
+                        }
+                    }
+
+                    if (!onPlatform) {
+                        // Return towards center
+                        const toCenter = new THREE.Vector3().subVectors(new THREE.Vector3(0, 0, 0), mesh.position).normalize();
+                        mesh.position.add(toCenter.multiplyScalar(delta * 10));
+                    }
+
+                    // Damage player on contact
+                    if (playerDistance < 2) {
+                        this.takeDamage(10);
+                    }
+                });
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+
+                const delta = Math.min(this.clock.getDelta(), 0.1);
+                const time = this.clock.getElapsedTime();
+
+                this.updatePlayer(delta);
+                this.updateCrystals(delta, time);
+                this.updateEnemies(delta);
+
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // Start the game
+        new FloatingIslandGame();
+    </script>
+</body>
+</html>

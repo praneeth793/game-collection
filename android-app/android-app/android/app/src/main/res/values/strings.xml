@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Game Collection</string>
+    <string name="splash_tagline">22 Amazing Games in Your Pocket</string>
+    
+    <!-- Touch Controls -->
+    <string name="control_back">← Swipe Right: Back</string>
+    <string name="control_forward">Swipe Left: Forward →</string>
+    <string name="control_refresh">↓ Swipe Down: Refresh</string>
+    
+    <!-- Errors -->
+    <string name="error_loading">Error loading content. Please check your connection.</string>
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    
+    <!-- Navigation -->
+    <string name="exit_confirm">Press back again to exit</string>
+    
+    <!-- Accessibility -->
+    <string name="content_description_game_icon">Game icon</string>
+    <string name="content_description_back_button">Navigate back</string>
+    <string name="content_description_forward_button">Navigate forward</string>
+</resources>
