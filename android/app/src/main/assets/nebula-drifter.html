@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nebula Drifter - Space Exploration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            user-select: none;
+        }
+
+        #gameCanvas {
+            display: block;
+            cursor: none;
+        }
+
+        /* Start Screen */
+        #startScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, #0a0a1a 0%, #000 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            cursor: pointer;
+        }
+
+        #startScreen h1 {
+            color: #00ffff;
+            font-size: 3.5rem;
+            font-weight: 300;
+            letter-spacing: 0.5rem;
+            text-shadow: 0 0 30px rgba(0, 255, 255, 0.5),
+                         0 0 60px rgba(0, 255, 255, 0.3);
+            margin-bottom: 0.5rem;
+            animation: titleGlow 2s ease-in-out infinite alternate;
+        }
+
+        #startScreen .subtitle {
+            color: #00aa88;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            letter-spacing: 0.3rem;
+        }
+
+        #startScreen .instructions {
+            color: #666;
+            font-size: 0.85rem;
+            text-align: center;
+            line-height: 2;
+            margin-bottom: 2rem;
+        }
+
+        #startScreen .start-btn {
+            padding: 15px 50px;
+            font-size: 1rem;
+            background: transparent;
+            color: #00ffff;
+            border: 2px solid #00ffff;
+            border-radius: 3px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transition: all 0.3s ease;
+        }
+
+        #startScreen .start-btn:hover {
+            background: rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.4),
+                        inset 0 0 30px rgba(0, 255, 255, 0.1);
+            transform: scale(1.05);
+        }
+
+        @keyframes titleGlow {
+            0% { text-shadow: 0 0 30px rgba(0, 255, 255, 0.5), 0 0 60px rgba(0, 255, 255, 0.3); }
+            100% { text-shadow: 0 0 40px rgba(0, 255, 255, 0.7), 0 0 80px rgba(0, 255, 255, 0.4); }
+        }
+
+        /* HUD */
+        #hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+            display: none;
+        }
+
+        /* Resource counter - minimal */
+        #resources {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00ffff;
+            font-size: 16px;
+            letter-spacing: 2px;
+        }
+
+        #resources span {
+            color: #ff00ff;
+            font-weight: bold;
+        }
+
+        /* Oxygen bar - minimal */
+        #oxygen-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            text-align: right;
+        }
+
+        #oxygen-label {
+            color: #00ff88;
+            font-size: 12px;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+
+        #oxygen-bar {
+            width: 150px;
+            height: 4px;
+            background: rgba(0, 255, 136, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        #oxygen-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #00ff88, #00ffff);
+            transition: width 0.3s ease;
+        }
+
+        /* Thrust indicators - minimal visual feedback */
+        #thrust-indicators {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 30px;
+        }
+
+        .thrust-indicator {
+            width: 40px;
+            height: 4px;
+            background: rgba(0, 255, 255, 0.2);
+            border-radius: 2px;
+            transition: all 0.1s ease;
+        }
+
+        .thrust-indicator.active {
+            background: #00ffff;
+            box-shadow: 0 0 10px #00ffff;
+        }
+
+        /* Center reticle */
+        #reticle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+        }
+
+        #reticle::before,
+        #reticle::after {
+            content: '';
+            position: absolute;
+            background: rgba(0, 255, 255, 0.5);
+        }
+
+        #reticle::before {
+            width: 2px;
+            height: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #reticle::after {
+            width: 30px;
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* Message display */
+        #message {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(0, 255, 255, 0.7);
+            font-size: 14px;
+            letter-spacing: 1px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #message.visible {
+            opacity: 1;
+        }
+
+        /* Victory Screen */
+        #victoryScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        #victoryScreen h1 {
+            color: #00ffff;
+            font-size: 2.5rem;
+            font-weight: 300;
+            letter-spacing: 0.3rem;
+            text-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            margin-bottom: 1rem;
+        }
+
+        #victoryScreen p {
+            color: #00aa88;
+            font-size: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        #victoryScreen .restart-btn {
+            padding: 12px 40px;
+            font-size: 0.9rem;
+            background: transparent;
+            color: #00ffff;
+            border: 2px solid #00ffff;
+            border-radius: 3px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+        }
+
+        #victoryScreen .restart-btn:hover {
+            background: rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+
+        /* Star field background effect */
+        .star {
+            position: fixed;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: starTwinkle 3s ease-in-out infinite;
+        }
+
+        @keyframes starTwinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        /* Scanlines effect */
+        #scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 255, 255, 0.02) 2px,
+                rgba(0, 255, 255, 0.02) 4px
+            );
+        }
+    </style>
+</head>
+<body>
+    <!-- Start Screen -->
+    <div id="startScreen">
+        <h1>NEBULA DRIFTER</h1>
+        <div class="subtitle">Space Exploration</div>
+        <div class="instructions">
+            <p>WASD - Thrust | MOUSE - Look | SPACE - Brake</p>
+            <p>Collect energy crystals | Explore alien ruins</p>
+            <p>Return to your ship when oxygen runs low</p>
+        </div>
+        <button class="start-btn" id="startBtn">LAUNCH</button>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div id="resources">CRYSTALS: <span id="crystal-count">0</span> / <span id="crystal-total">10</span></div>
+        <div id="oxygen-container">
+            <div id="oxygen-label">OXYGEN</div>
+            <div id="oxygen-bar">
+                <div id="oxygen-fill"></div>
+            </div>
+        </div>
+        <div id="reticle"></div>
+        <div id="thrust-indicators">
+            <div class="thrust-indicator" id="thrust-forward"></div>
+            <div class="thrust-indicator" id="thrust-back"></div>
+            <div class="thrust-indicator" id="thrust-left"></div>
+            <div class="thrust-indicator" id="thrust-right"></div>
+            <div class="thrust-indicator" id="thrust-up"></div>
+            <div class="thrust-indicator" id="thrust-down"></div>
+        </div>
+        <div id="message"></div>
+    </div>
+
+    <!-- Visual Effects -->
+    <div id="scanlines"></div>
+
+    <!-- Victory Screen -->
+    <div id="victoryScreen">
+        <h1>MISSION COMPLETE</h1>
+        <p id="final-score">All crystals collected!</p>
+        <button class="restart-btn" id="restartBtn">EXPLORE AGAIN</button>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // Create star field background
+        for (let i = 0; i < 100; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDelay = Math.random() * 3 + 's';
+            star.style.animationDuration = (2 + Math.random() * 2) + 's';
+            document.body.appendChild(star);
+        }
+
+        // Game State
+        let gameStarted = false;
+        let gameWon = false;
+        let crystalsCollected = 0;
+        const totalCrystals = 10;
+        let oxygen = 100;
+        const maxOxygen = 100;
+        let nearbyCrystal = null;
+        let nearbyShrine = null;
+
+        // Three.js Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050510);
+        scene.fog = new THREE.FogExp2(0x050510, 0.008);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
+        const canvas = renderer.domElement;
+
+        // Audio
+        let audioCtx;
+        let masterGain;
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.4;
+            masterGain.connect(audioCtx.destination);
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            switch(type) {
+                case 'thrust':
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(100 + Math.random() * 50, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    osc.connect(gain);
+                    gain.connect(masterGain);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.1);
+                    break;
+                case 'collect':
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.connect(gain);
+                    gain.connect(masterGain);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.3);
+                    break;
+                case 'shrine':
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.5);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+                    osc.connect(gain);
+                    gain.connect(masterGain);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.8);
+                    break;
+                case 'win':
+                    // Victory fanfare
+                    const notes = [523, 659, 784, 1047];
+                    notes.forEach((freq, i) => {
+                        const osc2 = audioCtx.createOscillator();
+                        const gain2 = audioCtx.createGain();
+                        osc2.type = 'sine';
+                        osc2.frequency.value = freq;
+                        gain2.gain.setValueAtTime(0.1, audioCtx.currentTime + i * 0.15);
+                        gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.15 + 0.3);
+                        osc2.connect(gain2);
+                        gain2.connect(masterGain);
+                        osc2.start(audioCtx.currentTime + i * 0.15);
+                        osc2.stop(audioCtx.currentTime + i * 0.15 + 0.3);
+                    });
+                    break;
+                case 'oxygen':
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    osc.connect(gain);
+                    gain.connect(masterGain);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.2);
+                    break;
+            }
+        }
+
+        // Player Ship
+        const player = {
+            position: new THREE.Vector3(0, 0, 0),
+            velocity: new THREE.Vector3(),
+            rotation: new THREE.Euler(0, 0, 0, 'YXZ'),
+            thrust: 15,
+            friction: 0.98
+        };
+
+        const moveState = {
+            forward: false,
+            backward: false,
+            left: false,
+            right: false,
+            up: false,
+            down: false,
+            brake: false
+        };
+
+        // World objects
+        const crystals = [];
+        const shrines = [];
+        const asteroids = [];
+        const particles = [];
+
+        // Materials - Neon/Futuristic style
+        const materials = {
+            crystal: new THREE.MeshStandardMaterial({
+                color: 0xff00ff,
+                emissive: 0xff00ff,
+                emissiveIntensity: 0.8,
+                transparent: true,
+                opacity: 0.9
+            }),
+            crystalInactive: new THREE.MeshStandardMaterial({
+                color: 0x444466,
+                emissive: 0x222233,
+                emissiveIntensity: 0.2,
+                transparent: true,
+                opacity: 0.6
+            }),
+            shrine: new THREE.MeshStandardMaterial({
+                color: 0x00ffff,
+                emissive: 0x00ffff,
+                emissiveIntensity: 0.3,
+                metalness: 0.8,
+                roughness: 0.2
+            }),
+            asteroid: new THREE.MeshStandardMaterial({
+                color: 0x333344,
+                roughness: 0.8,
+                metalness: 0.3
+            }),
+            platform: new THREE.MeshStandardMaterial({
+                color: 0x222233,
+                emissive: 0x001122,
+                emissiveIntensity: 0.1,
+                metalness: 0.7,
+                roughness: 0.3
+            }),
+            particle: new THREE.PointsMaterial({
+                color: 0x00ffff,
+                size: 0.1,
+                transparent: true,
+                opacity: 0.8
+            })
+        };
+
+        function createWorld() {
+            // Create nebula background with sprites
+            createNebulaBackground();
+
+            // Create central hub structure
+            createCentralHub();
+
+            // Create alien platforms throughout space
+            createPlatforms();
+
+            // Create asteroids
+            createAsteroids();
+
+            // Create energy crystals
+            createCrystals();
+
+            // Create decorative particles
+            createParticles();
+
+            // Add ambient lighting
+            setupLighting();
+        }
+
+        function createNebulaBackground() {
+            // Create starfield
+            const starGeo = new THREE.BufferGeometry();
+            const starCount = 2000;
+            const starPos = new Float32Array(starCount * 3);
+
+            for (let i = 0; i < starCount * 3; i += 3) {
+                starPos[i] = (Math.random() - 0.5) * 1000;
+                starPos[i + 1] = (Math.random() - 0.5) * 1000;
+                starPos[i + 2] = (Math.random() - 0.5) * 1000;
+            }
+
+            starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+            const starMat = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 0.5,
+                transparent: true,
+                opacity: 0.8
+            });
+            const stars = new THREE.Points(starGeo, starMat);
+            scene.add(stars);
+
+            // Add colored nebula clouds (simple sprites)
+            const nebulaColors = [0x440066, 0x006644, 0x004466, 0x660044];
+            for (let i = 0; i < 50; i++) {
+                const nebulaGeo = new THREE.PlaneGeometry(50 + Math.random() * 100, 50 + Math.random() * 100);
+                const nebulaMat = new THREE.MeshBasicMaterial({
+                    color: nebulaColors[Math.floor(Math.random() * nebulaColors.length)],
+                    transparent: true,
+                    opacity: 0.05,
+                    side: THREE.DoubleSide,
+                    blending: THREE.AdditiveBlending
+                });
+                const nebula = new THREE.Mesh(nebulaGeo, nebulaMat);
+                nebula.position.set(
+                    (Math.random() - 0.5) * 500,
+                    (Math.random() - 0.5) * 500,
+                    (Math.random() - 0.5) * 500
+                );
+                nebula.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+                scene.add(nebula);
+            }
+        }
+
+        function createCentralHub() {
+            // Main docking platform
+            const platformGeo = new THREE.CylinderGeometry(15, 20, 2, 8);
+            const platform = new THREE.Mesh(platformGeo, materials.platform);
+            platform.position.set(0, -10, 0);
+            platform.rotation.x = Math.PI;
+            scene.add(platform);
+
+            // Central pillar
+            const pillarGeo = new THREE.CylinderGeometry(2, 3, 20, 6);
+            const pillar = new THREE.Mesh(pillarGeo, materials.shrine);
+            pillar.position.set(0, 0, 0);
+            scene.add(pillar);
+
+            // Glowing ring
+            const ringGeo = new THREE.TorusGeometry(8, 0.3, 8, 32);
+            const ringMat = new THREE.MeshStandardMaterial({
+                color: 0x00ffff,
+                emissive: 0x00ffff,
+                emissiveIntensity: 0.5
+            });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.position.set(0, 0, 0);
+            ring.rotation.x = Math.PI / 2;
+            scene.add(ring);
+
+            // Point light at hub
+            const hubLight = new THREE.PointLight(0x00ffff, 2, 50);
+            hubLight.position.set(0, 5, 0);
+            scene.add(hubLight);
+        }
+
+        function createPlatforms() {
+            // Create alien platforms in a spherical pattern
+            for (let i = 0; i < 15; i++) {
+                const phi = Math.acos(-1 + (2 * i) / 15);
+                const theta = Math.sqrt(15 * Math.PI) * phi;
+
+                const x = 50 * Math.cos(theta) * Math.sin(phi);
+                const y = 50 * Math.sin(theta) * Math.sin(phi);
+                const z = 50 * Math.cos(phi);
+
+                // Platform
+                const platformGeo = new THREE.OctahedronGeometry(5 + Math.random() * 3, 0);
+                const platform = new THREE.Mesh(platformGeo, materials.platform.clone());
+                platform.position.set(x, y, z);
+                platform.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+                scene.add(platform);
+
+                // Add shrine on some platforms
+                if (Math.random() < 0.4) {
+                    const shrineGeo = new THREE.TorusKnotGeometry(1.5, 0.3, 32, 8);
+                    const shrine = new THREE.Mesh(shrineGeo, materials.shrine);
+                    shrine.position.set(x, y + 4, z);
+                    shrine.rotation.x = Math.PI / 2;
+                    scene.add(shrine);
+
+                    // Shrine light
+                    const shrineLight = new THREE.PointLight(0x00ffff, 0.5, 15);
+                    shrineLight.position.set(x, y + 4, z);
+                    scene.add(shrineLight);
+
+                    shrines.push({
+                        mesh: shrine,
+                        position: new THREE.Vector3(x, y + 4, z),
+                        active: false
+                    });
+                }
+            }
+        }
+
+        function createAsteroids() {
+            // Create asteroid field
+            for (let i = 0; i < 100; i++) {
+                const size = 0.5 + Math.random() * 3;
+                const asteroidGeo = new THREE.DodecahedronGeometry(size, 0);
+                const asteroid = new THREE.Mesh(asteroidGeo, materials.asteroid);
+                
+                // Random position in spherical shell
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const distance = 30 + Math.random() * 150;
+
+                asteroid.position.set(
+                    distance * Math.sin(phi) * Math.cos(theta),
+                    distance * Math.sin(phi) * Math.sin(theta),
+                    distance * Math.cos(phi)
+                );
+                
+                asteroid.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+                scene.add(asteroid);
+                asteroids.push({ mesh: asteroid, rotSpeed: (Math.random() - 0.5) * 0.02 });
+            }
+        }
+
+        function createCrystals() {
+            // Create energy crystals on platforms and around asteroids
+            const crystalGeo = new THREE.OctahedronGeometry(0.8, 0);
+
+            for (let i = 0; i < totalCrystals; i++) {
+                const crystal = new THREE.Mesh(crystalGeo, materials.crystalInactive.clone());
+                
+                // Position near platforms
+                const theta = (i / totalCrystals) * Math.PI * 2;
+                const distance = 40 + Math.random() * 60;
+                
+                crystal.position.set(
+                    Math.cos(theta) * distance,
+                    (Math.random() - 0.5) * 40,
+                    Math.sin(theta) * distance
+                );
+                
+                crystal.userData = { id: i, collected: false };
+                scene.add(crystal);
+
+                // Add point light
+                const light = new THREE.PointLight(0xff00ff, 0.3, 8);
+                light.position.copy(crystal.position);
+                scene.add(light);
+
+                crystals.push({
+                    mesh: crystal,
+                    light,
+                    id: i,
+                    collected: false,
+                    baseY: crystal.position.y,
+                    position: crystal.position.clone()
+                });
+            }
+        }
+
+        function createParticles() {
+            // Floating particles for atmosphere
+            const particleGeo = new THREE.BufferGeometry();
+            const particleCount = 500;
+            const positions = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 400;
+                positions[i + 1] = (Math.random() - 0.5) * 400;
+                positions[i + 2] = (Math.random() - 0.5) * 400;
+            }
+
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const particleSystem = new THREE.Points(particleGeo, materials.particle);
+            scene.add(particleSystem);
+        }
+
+        function setupLighting() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0x222244, 0.3);
+            scene.add(ambientLight);
+
+            // Main directional light
+            const dirLight = new THREE.DirectionalLight(0x4444ff, 0.5);
+            dirLight.position.set(50, 50, 50);
+            scene.add(dirLight);
+        }
+
+        // Controls
+        function setupControls() {
+            canvas.addEventListener('click', () => {
+                if (gameStarted && !gameWon) {
+                    canvas.requestPointerLock();
+                }
+            });
+
+            document.addEventListener('mousemove', (event) => {
+                if (!gameStarted || gameWon || document.pointerLockElement !== canvas) return;
+
+                const movementX = event.movementX || 0;
+                const movementY = event.movementY || 0;
+
+                player.rotation.y -= movementX * 0.002;
+                player.rotation.x -= movementY * 0.002;
+                player.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.rotation.x));
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (!gameStarted || gameWon) return;
+
+                switch (event.code) {
+                    case 'KeyW': moveState.forward = true; break;
+                    case 'KeyS': moveState.backward = true; break;
+                    case 'KeyA': moveState.left = true; break;
+                    case 'KeyD': moveState.right = true; break;
+                    case 'Space': moveState.brake = true; break;
+                    case 'ShiftLeft': moveState.up = true; break;
+                    case 'ControlLeft': moveState.down = true; break;
+                }
+            });
+
+            document.addEventListener('keyup', (event) => {
+                switch (event.code) {
+                    case 'KeyW': moveState.forward = false; break;
+                    case 'KeyS': moveState.backward = false; break;
+                    case 'KeyA': moveState.left = false; break;
+                    case 'KeyD': moveState.right = false; break;
+                    case 'Space': moveState.brake = false; break;
+                    case 'ShiftLeft': moveState.up = false; break;
+                    case 'ControlLeft': moveState.down = false; break;
+                }
+            });
+        }
+
+        function updatePlayer(delta) {
+            // Get forward direction based on rotation
+            const forward = new THREE.Vector3(0, 0, -1);
+            forward.applyEuler(player.rotation);
+
+            const right = new THREE.Vector3(1, 0, 0);
+            right.applyEuler(player.rotation);
+
+            const up = new THREE.Vector3(0, 1, 0);
+
+            // Apply thrust
+            if (moveState.forward) {
+                player.velocity.add(forward.clone().multiplyScalar(player.thrust * delta));
+                playSound('thrust');
+                document.getElementById('thrust-forward').classList.add('active');
+            } else {
+                document.getElementById('thrust-forward').classList.remove('active');
+            }
+
+            if (moveState.backward) {
+                player.velocity.add(forward.clone().multiplyScalar(-player.thrust * 0.5 * delta));
+                playSound('thrust');
+                document.getElementById('thrust-back').classList.add('active');
+            } else {
+                document.getElementById('thrust-back').classList.remove('active');
+            }
+
+            if (moveState.left) {
+                player.velocity.add(right.clone().multiplyScalar(-player.thrust * delta));
+                playSound('thrust');
+                document.getElementById('thrust-left').classList.add('active');
+            } else {
+                document.getElementById('thrust-left').classList.remove('active');
+            }
+
+            if (moveState.right) {
+                player.velocity.add(right.clone().multiplyScalar(player.thrust * delta));
+                playSound('thrust');
+                document.getElementById('thrust-right').classList.add('active');
+            } else {
+                document.getElementById('thrust-right').classList.remove('active');
+            }
+
+            if (moveState.up) {
+                player.velocity.add(up.clone().multiplyScalar(player.thrust * delta));
+                playSound('thrust');
+                document.getElementById('thrust-up').classList.add('active');
+            } else {
+                document.getElementById('thrust-up').classList.remove('active');
+            }
+
+            if (moveState.down) {
+                player.velocity.add(up.clone().multiplyScalar(-player.thrust * delta));
+                playSound('thrust');
+                document.getElementById('thrust-down').classList.add('active');
+            } else {
+                document.getElementById('thrust-down').classList.remove('active');
+            }
+
+            // Apply friction/braking
+            if (moveState.brake) {
+                player.velocity.multiplyScalar(0.95);
+            } else {
+                player.velocity.multiplyScalar(player.friction);
+            }
+
+            // Update position
+            player.position.add(player.velocity.clone().multiplyScalar(delta));
+
+            // Keep player within bounds
+            player.position.x = Math.max(-200, Math.min(200, player.position.x));
+            player.position.y = Math.max(-200, Math.min(200, player.position.y));
+            player.position.z = Math.max(-200, Math.min(200, player.position.z));
+
+            // Check nearby crystals
+            nearbyCrystal = null;
+            let minDist = 5;
+            for (const crystal of crystals) {
+                if (!crystal.collected) {
+                    const dist = player.position.distanceTo(crystal.position);
+                    if (dist < minDist) {
+                        nearbyCrystal = crystal;
+                        minDist = dist;
+                    }
+                }
+            }
+
+            // Check nearby shrines
+            nearbyShrine = null;
+            minDist = 8;
+            for (const shrine of shrines) {
+                const dist = player.position.distanceTo(shrine.position);
+                if (dist < minDist && !shrine.active) {
+                    nearbyShrine = shrine;
+                }
+            }
+
+            // Update camera
+            camera.position.copy(player.position);
+            camera.rotation.copy(player.rotation);
+        }
+
+        function updateWorld(delta, time) {
+            // Animate crystals
+            crystals.forEach((crystal, i) => {
+                if (!crystal.collected) {
+                    crystal.mesh.rotation.y += delta * 0.5;
+                    crystal.mesh.position.y = crystal.baseY + Math.sin(time * 2 + i) * 0.5;
+                    crystal.light.intensity = 0.3 + Math.sin(time * 3 + i) * 0.2;
+                }
+            });
+
+            // Animate asteroids
+            asteroids.forEach(asteroid => {
+                asteroid.mesh.rotation.x += asteroid.rotSpeed;
+                asteroid.mesh.rotation.y += asteroid.rotSpeed;
+            });
+
+            // Animate shrines
+            shrines.forEach((shrine, i) => {
+                shrine.mesh.rotation.z += delta * 0.3;
+                shrine.mesh.rotation.x = Math.PI / 2 + Math.sin(time + i) * 0.2;
+            });
+
+            // Check crystal collection
+            if (nearbyCrystal && player.position.distanceTo(nearbyCrystal.position) < 3) {
+                collectCrystal(nearbyCrystal);
+            }
+
+            // Check shrine interaction
+            if (nearbyShrine && !nearbyShrine.active) {
+                if (player.position.distanceTo(nearbyShrine.position) < 5) {
+                    activateShrine(nearbyShrine);
+                }
+            }
+
+            // Update oxygen
+            oxygen -= delta * 2;
+            if (oxygen <= 20 && Math.random() < 0.02) {
+                playSound('oxygen');
+            }
+
+            if (oxygen <= 0) {
+                oxygen = 0;
+                endGame();
+            }
+
+            // Update UI
+            updateUI();
+        }
+
+        function collectCrystal(crystalData) {
+            if (crystalData.collected) return;
+
+            crystalData.collected = true;
+            crystalData.mesh.material = materials.crystal;
+            crystalData.mesh.material.emissiveIntensity = 1;
+            crystalData.light.intensity = 2;
+            crystalData.collected = true;
+
+            // Animate collection
+            const startScale = crystalData.mesh.scale.x;
+            const animate = () => {
+                if (crystalData.mesh.scale.x < 2) {
+                    crystalData.mesh.scale.addScalar(0.1);
+                    crystalData.mesh.rotation.y += 0.3;
+                    requestAnimationFrame(animate);
+                } else {
+                    // Shrink away
+                    const fade = () => {
+                        if (crystalData.mesh.material.opacity > 0) {
+                            crystalData.mesh.material.opacity -= 0.1;
+                            crystalData.mesh.scale.multiplyScalar(0.9);
+                            requestAnimationFrame(fade);
+                        }
+                    };
+                    fade();
+                }
+            };
+            animate();
+
+            crystalsCollected++;
+            playSound('collect');
+            showMessage('Crystal collected!');
+
+            // Check win
+            if (crystalsCollected >= totalCrystals) {
+                setTimeout(() => {
+                    gameWon = true;
+                    playSound('win');
+                    showVictory();
+                }, 1000);
+            }
+        }
+
+        function activateShrine(shrineData) {
+            if (shrineData.active) return;
+
+            shrineData.active = true;
+            shrineData.mesh.material.emissiveIntensity = 1;
+            oxygen = Math.min(maxOxygen, oxygen + 30);
+            playSound('shrine');
+            showMessage('Oxygen restored!');
+        }
+
+        function updateUI() {
+            document.getElementById('crystal-count').textContent = crystalsCollected;
+            document.getElementById('oxygen-fill').style.width = `${(oxygen / maxOxygen) * 100}%`;
+
+            // Change oxygen color when low
+            const oxygenFill = document.getElementById('oxygen-fill');
+            if (oxygen < 30) {
+                oxygenFill.style.background = 'linear-gradient(90deg, #ff0000, #ff4444)';
+            } else {
+                oxygenFill.style.background = 'linear-gradient(90deg, #00ff88, #00ffff)';
+            }
+        }
+
+        function showMessage(text) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.classList.add('visible');
+            setTimeout(() => messageEl.classList.remove('visible'), 2000);
+        }
+
+        function showVictory() {
+            document.getElementById('hud').style.display = 'none';
+            document.getElementById('victoryScreen').style.display = 'flex';
+            document.getElementById('final-score').textContent = 
+                `You collected all ${totalCrystals} energy crystals!`;
+        }
+
+        function endGame() {
+            gameWon = true;
+            document.exitPointerLock();
+            document.getElementById('hud').style.display = 'none';
+            document.getElementById('victoryScreen').style.display = 'flex';
+            document.getElementById('final-score').textContent = 
+                `Mission failed. Oxygen depleted. Crystals: ${crystalsCollected}/${totalCrystals}`;
+        }
+
+        function restartGame() {
+            location.reload();
+        }
+
+        // Main update
+        let time = 0;
+        function update() {
+            const delta = Math.min(0.05, 1/60);
+            time += delta;
+
+            if (gameStarted && !gameWon) {
+                updatePlayer(delta);
+                updateWorld(delta, time);
+            }
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            update();
+            renderer.render(scene, camera);
+        }
+
+        // Game start
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+
+            initAudio();
+            createWorld();
+            setupControls();
+
+            gameStarted = true;
+            showMessage('Collect all crystals to complete mission');
+            canvas.requestPointerLock();
+        }
+
+        // Event listeners
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', restartGame);
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

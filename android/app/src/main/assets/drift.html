@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drift - A Tiny Meditation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #080810;
+            font-family: 'Georgia', serif;
+            user-select: none;
+        }
+
+        #gameCanvas {
+            display: block;
+        }
+
+        /* Start Screen - Minimal */
+        #startScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #080810;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            cursor: pointer;
+            transition: opacity 2s ease;
+        }
+
+        #startScreen h1 {
+            color: #c8b8a8;
+            font-size: 2.5rem;
+            font-weight: normal;
+            font-style: italic;
+            letter-spacing: 0.3rem;
+            margin-bottom: 1rem;
+            animation: fadeInOut 3s ease-in-out infinite;
+        }
+
+        #startScreen .subtitle {
+            color: #686858;
+            font-size: 0.9rem;
+            letter-spacing: 0.2rem;
+        }
+
+        #startScreen .hint {
+            position: absolute;
+            bottom: 50px;
+            color: #484838;
+            font-size: 0.75rem;
+            letter-spacing: 0.1rem;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        /* HUD - Almost invisible */
+        #hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+            display: none;
+        }
+
+        /* Minimal counter */
+        #memories {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #686858;
+            font-size: 14px;
+            letter-spacing: 0.2rem;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        /* Subtle vignette */
+        #vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            background: radial-gradient(ellipse at center, transparent 20%, rgba(8, 8, 16, 0.8) 70%, #080810 100%);
+        }
+
+        /* Collection flash effect */
+        #flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 20;
+            transition: opacity 0.5s ease;
+        }
+
+        /* End screen */
+        #endScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #080810;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 3s ease;
+        }
+
+        #endScreen h1 {
+            color: #a89888;
+            font-size: 2rem;
+            font-weight: normal;
+            font-style: italic;
+            letter-spacing: 0.3rem;
+            margin-bottom: 1rem;
+        }
+
+        #endScreen p {
+            color: #585848;
+            font-size: 0.85rem;
+            letter-spacing: 0.1rem;
+            margin-bottom: 2rem;
+        }
+
+        #endScreen .restart-hint {
+            color: #383828;
+            font-size: 0.7rem;
+            letter-spacing: 0.15rem;
+        }
+
+        /* Ambient floating particles in DOM */
+        .ambient-particle {
+            position: fixed;
+            width: 2px;
+            height: 2px;
+            background: rgba(200, 180, 160, 0.2);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: ambientFloat 15s ease-in-out infinite;
+        }
+
+        @keyframes ambientFloat {
+            0%, 100% { 
+                transform: translateY(100vh) scale(0); 
+                opacity: 0;
+            }
+            10% { 
+                opacity: 0.5;
+            }
+            90% { 
+                opacity: 0.5;
+            }
+            100% { 
+                transform: translateY(-100px) scale(1);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Start Screen -->
+    <div id="startScreen">
+        <h1>Drift</h1>
+        <div class="subtitle">a tiny meditation</div>
+        <div class="hint">click to begin</div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div id="memories">memories: <span id="memory-count">0</span></div>
+    </div>
+
+    <!-- Visual Effects -->
+    <div id="vignette"></div>
+    <div id="flash"></div>
+
+    <!-- End Screen -->
+    <div id="endScreen">
+        <h1>Drift</h1>
+        <p id="end-message">you collected 0 memories</p>
+        <div class="restart-hint">click to drift again</div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // Create ambient DOM particles
+        for (let i = 0; i < 20; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'ambient-particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 15 + 's';
+            particle.style.animationDuration = (12 + Math.random() * 8) + 's';
+            document.body.appendChild(particle);
+        }
+
+        // Game State - Minimal
+        let gameStarted = false;
+        let gameEnded = false;
+        let memoriesCollected = 0;
+        const maxMemories = 7;
+        let gameTime = 0;
+        const maxGameTime = 180; // 3 minutes max
+
+        // Three.js Setup - Minimal
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x080810);
+        scene.fog = new THREE.FogExp2(0x080810, 0.03);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 2, 10);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
+        const canvas = renderer.domElement;
+
+        // Audio - Generative ambient
+        let audioCtx;
+        let masterGain;
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.3;
+            masterGain.connect(audioCtx.destination);
+            startAmbientDrone();
+        }
+
+        let droneOsc;
+        function startAmbientDrone() {
+            droneOsc = audioCtx.createOscillator();
+            const droneGain = audioCtx.createGain();
+            const droneFilter = audioCtx.createBiquadFilter();
+
+            droneOsc.type = 'sine';
+            droneOsc.frequency.value = 55; // A1
+            droneGain.gain.value = 0.05;
+            droneFilter.type = 'lowpass';
+            droneFilter.frequency.value = 200;
+
+            droneOsc.connect(droneFilter);
+            droneFilter.connect(droneGain);
+            droneGain.connect(masterGain);
+            droneOsc.start();
+
+            // Slowly modulate the drone
+            setInterval(() => {
+                if (audioCtx && !gameEnded) {
+                    droneOsc.frequency.linearRampToValueAtTime(
+                        55 + Math.sin(Date.now() / 10000) * 5,
+                        audioCtx.currentTime + 1
+                    );
+                }
+            }, 1000);
+        }
+
+        function playTone(freq, duration = 2) {
+            if (!audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+            osc.connect(gain);
+            gain.connect(masterGain);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function playChord() {
+            // Major 7th chord based on current time
+            const baseFreq = 220 + Math.sin(gameTime * 0.1) * 20;
+            playTone(baseFreq, 3);
+            playTone(baseFreq * 1.25, 3); // Major 3rd
+            playTone(baseFreq * 1.5, 3); // Perfect 5th
+            playTone(baseFreq * 1.875, 3); // Major 7th
+        }
+
+        // Player - Just a point of view
+        const player = {
+            position: new THREE.Vector3(0, 2, 10),
+            targetPosition: new THREE.Vector3(0, 2, 10),
+            rotation: new THREE.Euler(0, 0, 0, 'YXZ'),
+            velocity: new THREE.Vector3()
+        };
+
+        const moveState = {
+            forward: false,
+            backward: false,
+            left: false,
+            right: false,
+            up: false,
+            down: false
+        };
+
+        // World - Minimal abstract environment
+        const memories = [];
+        const floatingObjects = [];
+        const trails = [];
+
+        // Materials - Subtle, ethereal
+        const materials = {
+            memory: new THREE.MeshStandardMaterial({
+                color: 0xc8b8a8,
+                emissive: 0xc8b8a8,
+                emissiveIntensity: 0.5,
+                transparent: true,
+                opacity: 0.9,
+                roughness: 0.2
+            }),
+            memoryCollected: new THREE.MeshStandardMaterial({
+                color: 0xffeedd,
+                emissive: 0xffeedd,
+                emissiveIntensity: 1,
+                transparent: true,
+                opacity: 0
+            }),
+            floater: new THREE.MeshStandardMaterial({
+                color: 0x888888,
+                transparent: true,
+                opacity: 0.3,
+                roughness: 0.8
+            }),
+            ground: new THREE.MeshStandardMaterial({
+                color: 0x181818,
+                roughness: 0.9
+            }),
+            trail: new THREE.LineBasicMaterial({
+                color: 0xc8b8a8,
+                transparent: true,
+                opacity: 0.3
+            })
+        };
+
+        function createWorld() {
+            // Ground plane - subtle
+            const groundGeo = new THREE.PlaneGeometry(200, 200);
+            const ground = new THREE.Mesh(groundGeo, materials.ground);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -5;
+            scene.add(ground);
+
+            // Abstract pillars - sparse
+            for (let i = 0; i < 15; i++) {
+                const height = 3 + Math.random() * 8;
+                const pillarGeo = new THREE.CylinderGeometry(0.1, 0.3, height, 6);
+                const pillar = new THREE.Mesh(pillarGeo, materials.floater);
+                pillar.position.set(
+                    (Math.random() - 0.5) * 80,
+                    -5 + height / 2,
+                    (Math.random() - 0.5) * 80
+                );
+                scene.add(pillar);
+            }
+
+            // Floating abstract shapes
+            for (let i = 0; i < 30; i++) {
+                const size = 0.2 + Math.random() * 0.5;
+                let geo;
+                const shapeType = Math.floor(Math.random() * 3);
+                if (shapeType === 0) geo = new THREE.IcosahedronGeometry(size, 0);
+                else if (shapeType === 1) geo = new THREE.OctahedronGeometry(size, 0);
+                else geo = new THREE.TetrahedronGeometry(size, 0);
+
+                const floater = new THREE.Mesh(geo, materials.floater.clone());
+                floater.position.set(
+                    (Math.random() - 0.5) * 60,
+                    (Math.random() - 0.5) * 30,
+                    (Math.random() - 0.5) * 60
+                );
+                floater.rotation.set(
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI
+                );
+                floater.userData = {
+                    rotSpeed: (Math.random() - 0.5) * 0.01,
+                    floatSpeed: 0.2 + Math.random() * 0.3,
+                    floatOffset: Math.random() * Math.PI * 2,
+                    baseY: floater.position.y
+                };
+                scene.add(floater);
+                floatingObjects.push(floater);
+            }
+
+            // Create memories (the collectibles)
+            createMemories();
+
+            // Soft lighting
+            const ambientLight = new THREE.AmbientLight(0x222233, 0.5);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(0xc8b8a8, 0.3, 50);
+            pointLight.position.set(0, 10, 0);
+            scene.add(pointLight);
+        }
+
+        function createMemories() {
+            const memoryGeo = new THREE.SphereGeometry(0.3, 16, 16);
+
+            // Position memories in a gentle spiral
+            for (let i = 0; i < maxMemories; i++) {
+                const angle = (i / maxMemories) * Math.PI * 4;
+                const distance = 5 + i * 2;
+
+                const memory = new THREE.Mesh(memoryGeo, materials.memory.clone());
+                memory.position.set(
+                    Math.cos(angle) * distance,
+                    2 + Math.sin(angle * 0.5) * 3,
+                    Math.sin(angle) * distance - i * 3
+                );
+                memory.userData = { 
+                    id: i, 
+                    collected: false,
+                    baseY: memory.position.y,
+                    phase: Math.random() * Math.PI * 2
+                };
+                scene.add(memory);
+
+                // Add soft point light to each memory
+                const memoryLight = new THREE.PointLight(0xc8b8a8, 0.3, 8);
+                memoryLight.position.copy(memory.position);
+                scene.add(memoryLight);
+
+                memories.push({
+                    mesh: memory,
+                    light: memoryLight,
+                    collected: false,
+                    position: memory.position.clone()
+                });
+            }
+        }
+
+        // Controls - Very minimal
+        function setupControls() {
+            canvas.addEventListener('click', () => {
+                if (gameStarted && !gameEnded) {
+                    canvas.requestPointerLock();
+                }
+            });
+
+            document.addEventListener('mousemove', (event) => {
+                if (!gameStarted || gameEnded || document.pointerLockElement !== canvas) return;
+
+                player.rotation.y -= event.movementX * 0.003;
+                player.rotation.x -= event.movementY * 0.003;
+                player.rotation.x = Math.max(-1, Math.min(1, player.rotation.x));
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (!gameStarted || gameEnded) return;
+                switch (event.code) {
+                    case 'KeyW': case 'ArrowUp': moveState.forward = true; break;
+                    case 'KeyS': case 'ArrowDown': moveState.backward = true; break;
+                    case 'KeyA': case 'ArrowLeft': moveState.left = true; break;
+                    case 'KeyD': case 'ArrowRight': moveState.right = true; break;
+                }
+            });
+
+            document.addEventListener('keyup', (event) => {
+                switch (event.code) {
+                    case 'KeyW': case 'ArrowUp': moveState.forward = false; break;
+                    case 'KeyS': case 'ArrowDown': moveState.backward = false; break;
+                    case 'KeyA': case 'ArrowLeft': moveState.left = false; break;
+                    case 'KeyD': case 'ArrowRight': moveState.right = false; break;
+                }
+            });
+        }
+
+        function updatePlayer(delta) {
+            // Very slow, drifting movement
+            const speed = 3;
+
+            const forward = new THREE.Vector3(0, 0, -1);
+            forward.applyEuler(player.rotation);
+            forward.y = 0;
+            forward.normalize();
+
+            const right = new THREE.Vector3(1, 0, 0);
+            right.applyEuler(player.rotation);
+            right.y = 0;
+            right.normalize();
+
+            if (moveState.forward) player.targetPosition.add(forward.multiplyScalar(speed * delta));
+            if (moveState.backward) player.targetPosition.add(forward.multiplyScalar(-speed * 0.5 * delta));
+            if (moveState.left) player.targetPosition.add(right.multiplyScalar(-speed * delta));
+            if (moveState.right) player.targetPosition.add(right.multiplyScalar(speed * delta));
+
+            // Clamp position
+            player.targetPosition.x = Math.max(-40, Math.min(40, player.targetPosition.x));
+            player.targetPosition.z = Math.max(-40, Math.min(40, player.targetPosition.z));
+            player.targetPosition.y = Math.max(-3, Math.min(8, player.targetPosition.y));
+
+            // Smooth camera movement
+            player.position.lerp(player.targetPosition, 0.05);
+            camera.position.copy(player.position);
+            camera.rotation.copy(player.rotation);
+
+            // Check memory collection
+            for (const memory of memories) {
+                if (!memory.collected) {
+                    const dist = player.position.distanceTo(memory.mesh.position);
+                    if (dist < 3) {
+                        collectMemory(memory);
+                    }
+                }
+            }
+        }
+
+        function collectMemory(memory) {
+            if (memory.collected) return;
+
+            memory.collected = true;
+            memoriesCollected++;
+
+            // Visual feedback - soft flash
+            const flash = document.getElementById('flash');
+            flash.style.opacity = '0.1';
+            setTimeout(() => flash.style.opacity = '0', 300);
+
+            // Change material
+            memory.mesh.material = materials.memoryCollected;
+
+            // Play tone based on collection order
+            const chordBase = 220 + memoriesCollected * 30;
+            playTone(chordBase, 2);
+            playTone(chordBase * 1.25, 2);
+            playTone(chordBase * 1.5, 2);
+
+            // Animate
+            const startScale = memory.mesh.scale.x;
+            const animateCollection = () => {
+                if (memory.mesh.scale.x < 3) {
+                    memory.mesh.scale.addScalar(0.1);
+                    memory.mesh.material.opacity = Math.max(0, 1 - (memory.mesh.scale.x - 1) / 2);
+                    memory.light.intensity *= 0.95;
+                    requestAnimationFrame(animateCollection);
+                } else {
+                    memory.mesh.visible = false;
+                    memory.light.visible = false;
+                }
+            };
+            animateCollection();
+
+            // Update UI
+            document.getElementById('memory-count').textContent = memoriesCollected;
+            document.getElementById('memories').style.opacity = '1';
+
+            // Check end condition
+            if (memoriesCollected >= maxMemories || gameTime > maxGameTime) {
+                setTimeout(endGame, 1000);
+            }
+        }
+
+        function updateWorld(delta, time) {
+            // Animate floating objects
+            floatingObjects.forEach(obj => {
+                obj.rotation.x += obj.userData.rotSpeed;
+                obj.rotation.y += obj.userData.rotSpeed;
+                obj.position.y = obj.userData.baseY + Math.sin(time * obj.userData.floatSpeed + obj.userData.floatOffset) * 0.5;
+            });
+
+            // Animate memories
+            memories.forEach((memory, i) => {
+                if (!memory.collected) {
+                    memory.mesh.rotation.y += delta * 0.5;
+                    memory.mesh.position.y = memory.position.y + Math.sin(time + i) * 0.3;
+                    memory.mesh.position.x = memory.position.x + Math.sin(time * 0.5 + i) * 0.2;
+                }
+            });
+        }
+
+        function endGame() {
+            gameEnded = true;
+
+            // Fade out HUD
+            document.getElementById('hud').style.display = 'none';
+
+            // Show end screen
+            const endScreen = document.getElementById('endScreen');
+            endScreen.style.display = 'flex';
+            
+            // Trigger reflow
+            endScreen.offsetHeight;
+            
+            endScreen.style.opacity = '1';
+
+            // Update message
+            const messages = [
+                "you collected 0 memories",
+                "you caught 1 memory in your hands",
+                "you gathered 2 fleeting moments",
+                "3 memories danced in your grasp",
+                "4 fragments of light, now with you",
+                "5 memories, brief and beautiful",
+                "6 moments, dissolving yet eternal",
+                "all 7 memories, now part of you"
+            ];
+            document.getElementById('end-message').textContent = messages[Math.min(memoriesCollected, 8)];
+
+            // Gentle final chord
+            if (audioCtx && !gameEnded) {
+                playChord();
+            }
+        }
+
+        function restartGame() {
+            location.reload();
+        }
+
+        // Main loop
+        let time = 0;
+        function update() {
+            const delta = Math.min(0.05, 1/60);
+            time += delta;
+            gameTime += delta;
+
+            if (gameStarted && !gameEnded) {
+                updatePlayer(delta);
+                updateWorld(delta, time);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            update();
+            renderer.render(scene, camera);
+        }
+
+        // Start
+        function startGame() {
+            document.getElementById('startScreen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('startScreen').style.display = 'none';
+                document.getElementById('hud').style.display = 'block';
+                document.getElementById('memories').style.opacity = '0.5';
+            }, 2000);
+
+            initAudio();
+            createWorld();
+            setupControls();
+
+            gameStarted = true;
+            canvas.requestPointerLock();
+        }
+
+        // Event listeners
+        document.getElementById('startScreen').addEventListener('click', startGame);
+        document.getElementById('endScreen').addEventListener('click', restartGame);
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

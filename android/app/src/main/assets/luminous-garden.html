@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luminous Garden - 3D Puzzle Exploration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #0a0a12;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        #gameCanvas {
+            display: block;
+            cursor: none;
+        }
+
+        /* Start Screen */
+        #startScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            cursor: pointer;
+        }
+
+        #startScreen h1 {
+            color: #e8d5b7;
+            font-size: 4rem;
+            font-weight: 300;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 30px rgba(232, 213, 183, 0.3);
+            letter-spacing: 0.5rem;
+        }
+
+        #startScreen .subtitle {
+            color: #a0a0b0;
+            font-size: 1.2rem;
+            margin-bottom: 3rem;
+            letter-spacing: 0.3rem;
+        }
+
+        #startScreen .instructions {
+            color: #606070;
+            font-size: 0.9rem;
+            text-align: center;
+            line-height: 2;
+            margin-bottom: 2rem;
+        }
+
+        #startScreen .start-btn {
+            padding: 15px 50px;
+            font-size: 1rem;
+            background: transparent;
+            color: #e8d5b7;
+            border: 2px solid #e8d5b7;
+            border-radius: 30px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transition: all 0.3s ease;
+        }
+
+        #startScreen .start-btn:hover {
+            background: rgba(232, 213, 183, 0.1);
+            transform: scale(1.05);
+        }
+
+        /* HUD */
+        #hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+            display: none;
+        }
+
+        /* Progress indicator */
+        #progress-container {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+        }
+
+        #progress-label {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+
+        #crystals-collected {
+            color: #ffd700;
+            font-size: 28px;
+            font-weight: 300;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+
+        #progress-bar {
+            width: 150px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            margin: 10px auto 0;
+            overflow: hidden;
+        }
+
+        #progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #ffd700, #ffaa00);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        /* Interaction indicator */
+        #interaction-hint {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffd700;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        #interaction-hint.visible {
+            opacity: 1;
+        }
+
+        /* Notification */
+        #notification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffd700;
+            font-size: 24px;
+            font-weight: 300;
+            opacity: 0;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        #notification.visible {
+            opacity: 1;
+        }
+
+        /* Crosshair */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            opacity: 0.3;
+        }
+
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background: #fff;
+        }
+
+        #crosshair::before {
+            width: 2px;
+            height: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #crosshair::after {
+            width: 20px;
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* Victory Screen */
+        #victoryScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 18, 0.95);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        #victoryScreen h1 {
+            color: #ffd700;
+            font-size: 3rem;
+            font-weight: 300;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+            letter-spacing: 0.3rem;
+        }
+
+        #victoryScreen p {
+            color: #a0a0b0;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        #victoryScreen .restart-btn {
+            padding: 12px 40px;
+            font-size: 0.9rem;
+            background: transparent;
+            color: #ffd700;
+            border: 2px solid #ffd700;
+            border-radius: 25px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+        }
+
+        #victoryScreen .restart-btn:hover {
+            background: rgba(255, 215, 0, 0.1);
+            transform: scale(1.05);
+        }
+
+        /* Ambient particles background */
+        .particle {
+            position: fixed;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 215, 0, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: float 10s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Start Screen -->
+    <div id="startScreen" style="cursor: pointer;">
+        <h1>Luminous Garden</h1>
+        <div class="subtitle">A Peaceful Puzzle Journey</div>
+        <div class="instructions">
+            <p>WASD or Arrow Keys - Move</p>
+            <p>Mouse - Look Around</p>
+            <p>Walk toward glowing objects to interact</p>
+        </div>
+        <div class="start-btn" id="startBtn">Begin Journey</div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div id="progress-container">
+            <div id="progress-label">Crystals Illuminated</div>
+            <div id="crystals-collected">0 / 5</div>
+            <div id="progress-bar">
+                <div id="progress-fill"></div>
+            </div>
+        </div>
+        <div id="crosshair"></div>
+        <div id="interaction-hint">Press E or click to interact</div>
+        <div id="notification"></div>
+    </div>
+
+    <!-- Victory Screen -->
+    <div id="victoryScreen">
+        <h1>Garden Illuminated</h1>
+        <p>You have brought light to the entire garden</p>
+        <button class="restart-btn" id="restartBtn">Journey Again</button>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // Create ambient particles
+        for (let i = 0; i < 30; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 10 + 's';
+            particle.style.animationDuration = (8 + Math.random() * 6) + 's';
+            document.body.appendChild(particle);
+        }
+
+        // Game State
+        let gameStarted = false;
+        let gameWon = false;
+        let crystalsCollected = 0;
+        const totalCrystals = 5;
+        let nearbyInteractable = null;
+
+        // Three.js Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a12);
+        scene.fog = new THREE.FogExp2(0x0a0a12, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 2, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+        const canvas = renderer.domElement;
+
+        // Audio
+        let audioCtx;
+        let masterGain;
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.4;
+            masterGain.connect(audioCtx.destination);
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            switch(type) {
+                case 'collect':
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1046, audioCtx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                    break;
+                case 'switch':
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    break;
+                case 'win':
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1046, audioCtx.currentTime + 1);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 2);
+                    break;
+                case 'step':
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                    break;
+            }
+
+            osc.connect(gain);
+            gain.connect(masterGain);
+            osc.start();
+            osc.stop(audioCtx.currentTime + (type === 'win' ? 2 : 0.5));
+        }
+
+        // Player
+        const player = {
+            position: new THREE.Vector3(0, 2, 0),
+            velocity: new THREE.Vector3(),
+            onGround: false,
+            radius: 0.5,
+            height: 2,
+            jumpForce: 12,
+            speed: 8,
+            gravity: 30
+        };
+
+        const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+        const PI_2 = Math.PI / 2;
+
+        // Movement state
+        const moveState = {
+            forward: false,
+            backward: false,
+            left: false,
+            right: false
+        };
+
+        // World objects
+        const platforms = [];
+        const switches = [];
+        const doors = [];
+        const crystals = [];
+        const lightOrbs = [];
+        const walls = [];
+        const collectibles = [];
+
+        // Materials
+        const materials = {
+            ground: new THREE.MeshStandardMaterial({ color: 0x2d3436, roughness: 0.8 }),
+            stone: new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.7 }),
+            wood: new THREE.MeshStandardMaterial({ color: 0x8b6914, roughness: 0.6 }),
+            crystal: new THREE.MeshStandardMaterial({ 
+                color: 0xffd700, 
+                emissive: 0xffd700,
+                emissiveIntensity: 0.5,
+                transparent: true,
+                opacity: 0.8,
+                roughness: 0.1
+            }),
+            crystalInactive: new THREE.MeshStandardMaterial({ 
+                color: 0x444444, 
+                emissive: 0x222222,
+                emissiveIntensity: 0.2,
+                transparent: true,
+                opacity: 0.6,
+                roughness: 0.5
+            }),
+            switch: new THREE.MeshStandardMaterial({ color: 0x4ade80, emissive: 0x4ade80, emissiveIntensity: 0.3 }),
+            switchInactive: new THREE.MeshStandardMaterial({ color: 0x666666 }),
+            door: new THREE.MeshStandardMaterial({ color: 0x6366f1, transparent: true, opacity: 0.8 }),
+            glow: new THREE.MeshBasicMaterial({ color: 0xffd700 }),
+            orb: new THREE.MeshBasicMaterial({ color: 0x4ade80 }),
+            platform: new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.5 })
+        };
+
+        // Create world
+        function createWorld() {
+            // Ground
+            const groundGeo = new THREE.PlaneGeometry(100, 100, 50, 50);
+            const ground = new THREE.Mesh(groundGeo, materials.ground);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Add some terrain variation
+            for (let i = 0; i < 20; i++) {
+                const hillGeo = new THREE.SphereGeometry(3 + Math.random() * 5, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+                const hill = new THREE.Mesh(hillGeo, materials.ground);
+                hill.position.set(
+                    (Math.random() - 0.5) * 80,
+                    0,
+                    (Math.random() - 0.5) * 80
+                );
+                hill.receiveShadow = true;
+                scene.add(hill);
+            }
+
+            // Central garden area
+            createCentralGarden();
+            
+            // Puzzle area 1 - The Bridge
+            createBridgePuzzle();
+            
+            // Puzzle area 2 - The Tower
+            createTowerPuzzle();
+            
+            // Puzzle area 3 - The Pond
+            createPondPuzzle();
+            
+            // Puzzle area 4 - The Cave
+            createCavePuzzle();
+            
+            // Puzzle area 5 - The Peak
+            createPeakPuzzle();
+        }
+
+        function createCentralGarden() {
+            // Central fountain base
+            const fountainGeo = new THREE.CylinderGeometry(8, 10, 3, 32);
+            const fountain = new THREE.Mesh(fountainGeo, materials.stone);
+            fountain.position.set(0, 1.5, 0);
+            fountain.castShadow = true;
+            fountain.receiveShadow = true;
+            scene.add(fountain);
+
+            // Fountain water (visual only)
+            const waterGeo = new THREE.CylinderGeometry(6, 6, 0.5, 32);
+            const waterMat = new THREE.MeshBasicMaterial({ color: 0x4fc3f7, transparent: true, opacity: 0.6 });
+            const water = new THREE.Mesh(waterGeo, waterMat);
+            water.position.set(0, 3.2, 0);
+            scene.add(water);
+
+            // Central crystal
+            createCrystal(new THREE.Vector3(0, 6, 0), 'main');
+
+            // Surrounding lights
+            for (let i = 0; i < 6; i++) {
+                const angle = (i / 6) * Math.PI * 2;
+                const orb = createLightOrb(new THREE.Vector3(Math.cos(angle) * 12, 2, Math.sin(angle) * 12));
+                lightOrbs.push(orb);
+            }
+
+            // Paths
+            for (let i = 0; i < 4; i++) {
+                const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
+                const pathGeo = new THREE.BoxGeometry(2, 0.1, 20);
+                const path = new THREE.Mesh(pathGeo, materials.wood);
+                path.position.set(Math.cos(angle) * 10, 0.05, Math.sin(angle) * 10);
+                path.rotation.y = angle;
+                path.receiveShadow = true;
+                scene.add(path);
+            }
+        }
+
+        function createBridgePuzzle() {
+            // Bridge platforms leading to east area
+            const bridgeStart = new THREE.Vector3(30, 0, 0);
+            
+            // Moving platforms
+            for (let i = 0; i < 3; i++) {
+                const platformGeo = new THREE.BoxGeometry(4, 0.5, 4);
+                const platform = new THREE.Mesh(platformGeo, materials.platform);
+                platform.position.set(30 + i * 8, 0.5, 10 + i * 6);
+                platform.castShadow = true;
+                platform.receiveShadow = true;
+                scene.add(platform);
+
+                platforms.push({
+                    mesh: platform,
+                    startPos: platform.position.clone(),
+                    endPos: new THREE.Vector3(30 + i * 8, 3, 15 + i * 6),
+                    speed: 0.5 + i * 0.2,
+                    offset: i * 2,
+                    axis: 'y',
+                    active: false
+                });
+            }
+
+            // Pressure switch
+            createSwitch(new THREE.Vector3(25, 0.3, -5), 'bridge');
+
+            // Crystal
+            createCrystal(new THREE.Vector3(50, 3, 35), 'bridge');
+        }
+
+        function createTowerPuzzle() {
+            // Tower structure
+            const towerGeo = new THREE.CylinderGeometry(6, 8, 15, 8);
+            const tower = new THREE.Mesh(towerGeo, materials.stone);
+            tower.position.set(-40, 7.5, -30);
+            tower.castShadow = true;
+            tower.receiveShadow = true;
+            scene.add(tower);
+
+            // Tower platforms (spiral)
+            for (let i = 0; i < 4; i++) {
+                const angle = (i / 4) * Math.PI * 2;
+                const platformGeo = new THREE.BoxGeometry(3, 0.3, 3);
+                const platform = new THREE.Mesh(platformGeo, materials.platform);
+                platform.position.set(
+                    -40 + Math.cos(angle) * 8,
+                    2 + i * 3,
+                    -30 + Math.sin(angle) * 8
+                );
+                platform.castShadow = true;
+                scene.add(platform);
+            }
+
+            // Switches on each level
+            for (let i = 0; i < 3; i++) {
+                const angle = ((i + 0.5) / 3) * Math.PI * 2;
+                createSwitch(new THREE.Vector3(
+                    -40 + Math.cos(angle) * 4,
+                    2 + i * 3,
+                    -30 + Math.sin(angle) * 4
+                ), `tower${i}`);
+            }
+
+            // Crystal at top
+            createCrystal(new THREE.Vector3(-40, 17, -30), 'tower');
+        }
+
+        function createPondPuzzle() {
+            // Pond
+            const pondGeo = new THREE.CircleGeometry(12, 32);
+            const pondMat = new THREE.MeshStandardMaterial({ color: 0x1e3a5f, roughness: 0.1 });
+            const pond = new THREE.Mesh(pondGeo, pondMat);
+            pond.rotation.x = -Math.PI / 2;
+            pond.position.set(50, 0.1, -40);
+            scene.add(pond);
+
+            // Island
+            const islandGeo = new THREE.CylinderGeometry(4, 5, 2, 16);
+            const island = new THREE.Mesh(islandGeo, materials.stone);
+            island.position.set(50, 1, -40);
+            island.castShadow = true;
+            scene.add(island);
+
+            // Lily pads (platforms)
+            for (let i = 0; i < 4; i++) {
+                const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
+                const padGeo = new THREE.CircleGeometry(2.5, 16);
+                const padMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32 });
+                const pad = new THREE.Mesh(padGeo, padMat);
+                pad.rotation.x = -Math.PI / 2;
+                pad.position.set(
+                    50 + Math.cos(angle) * 10,
+                    0.15,
+                    -40 + Math.sin(angle) * 10
+                );
+                scene.add(pad);
+
+                platforms.push({
+                    mesh: pad,
+                    startPos: pad.position.clone(),
+                    endPos: new THREE.Vector3(50 + Math.cos(angle) * 10, 1, -40 + Math.sin(angle) * 10),
+                    speed: 0.3,
+                    offset: i,
+                    axis: 'y',
+                    active: true // Always active for pond
+                });
+            }
+
+            // Pressure switches on lily pads
+            for (let i = 0; i < 2; i++) {
+                const angle = (i / 2) * Math.PI * 2 + Math.PI / 4;
+                createSwitch(new THREE.Vector3(
+                    50 + Math.cos(angle) * 10,
+                    0.3,
+                    -40 + Math.sin(angle) * 10
+                ), `pond${i}`);
+            }
+
+            // Crystal on island
+            createCrystal(new THREE.Vector3(50, 4, -40), 'pond');
+        }
+
+        function createCavePuzzle() {
+            // Cave entrance
+            const caveGeo = new THREE.SphereGeometry(8, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+            const cave = new THREE.Mesh(caveGeo, materials.stone);
+            cave.position.set(-60, 4, 30);
+            cave.rotation.x = Math.PI;
+            cave.castShadow = true;
+            scene.add(cave);
+
+            // Cave interior platform
+            const caveFloorGeo = new THREE.BoxGeometry(15, 0.5, 15);
+            const caveFloor = new THREE.Mesh(caveFloorGeo, materials.stone);
+            caveFloor.position.set(-60, 0.5, 30);
+            caveFloor.receiveShadow = true;
+            scene.add(caveFloor);
+
+            // Mirror puzzle - reflective surfaces
+            const mirrorGeo = new THREE.BoxGeometry(0.2, 4, 4);
+            const mirrorMat = new THREE.MeshStandardMaterial({ 
+                color: 0x67e8f9, 
+                metalness: 0.9, 
+                roughness: 0.1,
+                transparent: true,
+                opacity: 0.7
+            });
+
+            const mirror1 = new THREE.Mesh(mirrorGeo, mirrorMat);
+            mirror1.position.set(-55, 2.5, 35);
+            scene.add(mirror1);
+
+            // Switches
+            createSwitch(new THREE.Vector3(-65, 0.5, 25), 'cave1');
+            createSwitch(new THREE.Vector3(-65, 0.5, 35), 'cave2');
+
+            // Crystal deep in cave
+            createCrystal(new THREE.Vector3(-60, 3, 30), 'cave');
+        }
+
+        function createPeakPuzzle() {
+            // Mountain peak
+            const peakGeo = new THREE.ConeGeometry(15, 20, 8);
+            const peak = new THREE.Mesh(peakGeo, materials.stone);
+            peak.position.set(0, 10, -60);
+            peak.castShadow = true;
+            scene.add(peak);
+
+            // Spiral path
+            for (let i = 0; i < 20; i++) {
+                const angle = (i / 20) * Math.PI * 4;
+                const stepGeo = new THREE.BoxGeometry(2, 0.3, 2);
+                const step = new THREE.Mesh(stepGeo, materials.stone);
+                step.position.set(
+                    Math.cos(angle) * (5 + i * 0.3),
+                    i * 0.5,
+                    -60 + Math.sin(angle) * (5 + i * 0.3)
+                );
+                step.castShadow = true;
+                scene.add(step);
+            }
+
+            // Platforms
+            platforms.push({
+                mesh: new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 4), materials.platform),
+                startPos: new THREE.Vector3(8, 5, -55),
+                endPos: new THREE.Vector3(8, 8, -55),
+                speed: 0.4,
+                offset: 0,
+                axis: 'y',
+                active: false
+            });
+
+            // Switch at the base
+            createSwitch(new THREE.Vector3(5, 0.3, -50), 'peak');
+
+            // Final crystal at peak
+            createCrystal(new THREE.Vector3(0, 21, -60), 'peak');
+        }
+
+        function createCrystal(position, id) {
+            const crystalGeo = new THREE.OctahedronGeometry(1, 0);
+            const crystal = new THREE.Mesh(crystalGeo, materials.crystalInactive.clone());
+            crystal.position.copy(position);
+            crystal.userData = { id, collected: false };
+            scene.add(crystal);
+
+            crystals.push({
+                mesh: crystal,
+                id,
+                collected: false,
+                baseY: position.y,
+                light: null
+            });
+
+            // Add point light
+            const light = new THREE.PointLight(0xffd700, 0.5, 10);
+            light.position.copy(position);
+            scene.add(light);
+            crystals[crystals.length - 1].light = light;
+        }
+
+        function createSwitch(position, id) {
+            const switchGeo = new THREE.CylinderGeometry(1, 1.2, 0.3, 16);
+            const switchMesh = new THREE.Mesh(switchGeo, materials.switchInactive.clone());
+            switchMesh.position.copy(position);
+            switchMesh.userData = { id, activated: false };
+            scene.add(switchMesh);
+
+            // Glow ring
+            const ringGeo = new THREE.RingGeometry(1.3, 1.6, 32);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.position.copy(position);
+            ring.position.y += 0.2;
+            ring.rotation.x = -Math.PI / 2;
+            scene.add(ring);
+
+            switches.push({
+                mesh: switchMesh,
+                ring,
+                id,
+                activated: false,
+                position: position.clone()
+            });
+        }
+
+        function createLightOrb(position) {
+            const orbGeo = new THREE.SphereGeometry(0.5, 16, 16);
+            const orb = new THREE.Mesh(orbGeo, materials.orb);
+            orb.position.copy(position);
+            scene.add(orb);
+
+            const light = new THREE.PointLight(0x4ade80, 0.8, 15);
+            light.position.copy(position);
+            scene.add(light);
+
+            return { mesh: orb, light, baseY: position.y };
+        }
+
+        // Lighting
+        function setupLighting() {
+            const ambientLight = new THREE.AmbientLight(0x404060, 0.3);
+            scene.add(ambientLight);
+
+            // Main light (moon)
+            const moonLight = new THREE.DirectionalLight(0x6688cc, 0.5);
+            moonLight.position.set(50, 100, 50);
+            moonLight.castShadow = true;
+            moonLight.shadow.mapSize.width = 2048;
+            moonLight.shadow.mapSize.height = 2048;
+            moonLight.shadow.camera.near = 0.5;
+            moonLight.shadow.camera.far = 200;
+            moonLight.shadow.camera.left = -50;
+            moonLight.shadow.camera.right = 50;
+            moonLight.shadow.camera.top = 50;
+            moonLight.shadow.camera.bottom = -50;
+            scene.add(moonLight);
+        }
+
+        // Controls
+        function setupControls() {
+            canvas.addEventListener('click', () => {
+                if (gameStarted && !gameWon) {
+                    canvas.requestPointerLock();
+                    checkInteraction();
+                }
+            });
+
+            document.addEventListener('mousemove', (event) => {
+                if (!gameStarted || gameWon || document.pointerLockElement !== canvas) return;
+
+                const movementX = event.movementX || 0;
+                const movementY = event.movementY || 0;
+
+                euler.setFromQuaternion(camera.quaternion);
+                euler.y -= movementX * 0.002;
+                euler.x -= movementY * 0.002;
+                euler.x = Math.max(-PI_2, Math.min(PI_2, euler.x));
+                camera.quaternion.setFromEuler(euler);
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (!gameStarted || gameWon) return;
+
+                switch (event.code) {
+                    case 'KeyW': case 'ArrowUp': moveState.forward = true; break;
+                    case 'KeyS': case 'ArrowDown': moveState.backward = true; break;
+                    case 'KeyA': case 'ArrowLeft': moveState.left = true; break;
+                    case 'KeyD': case 'ArrowRight': moveState.right = true; break;
+                    case 'Space':
+                        if (player.onGround) {
+                            player.velocity.y = player.jumpForce;
+                            player.onGround = false;
+                        }
+                        break;
+                    case 'KeyE': case 'Enter': checkInteraction(); break;
+                }
+            });
+
+            document.addEventListener('keyup', (event) => {
+                switch (event.code) {
+                    case 'KeyW': case 'ArrowUp': moveState.forward = false; break;
+                    case 'KeyS': case 'ArrowDown': moveState.backward = false; break;
+                    case 'KeyA': case 'ArrowLeft': moveState.left = false; break;
+                    case 'KeyD': case 'ArrowRight': moveState.right = false; break;
+                }
+            });
+        }
+
+        function checkInteraction() {
+            if (nearbyInteractable) {
+                if (nearbyInteractable.type === 'crystal' && !nearbyInteractable.data.collected) {
+                    collectCrystal(nearbyInteractable.data);
+                } else if (nearbyInteractable.type === 'switch') {
+                    activateSwitch(nearbyInteractable.data);
+                }
+            }
+        }
+
+        function collectCrystal(crystalData) {
+            if (crystalData.collected) return;
+
+            crystalData.collected = true;
+            crystalData.mesh.material = materials.crystal;
+            crystalData.mesh.material.emissiveIntensity = 1;
+            crystalData.light.intensity = 2;
+
+            // Animation
+            const startScale = crystalData.mesh.scale.x;
+            const animate = () => {
+                if (crystalData.mesh.scale.x < 2) {
+                    crystalData.mesh.scale.addScalar(0.1);
+                    crystalData.mesh.rotation.y += 0.2;
+                    requestAnimationFrame(animate);
+                }
+            };
+            animate();
+
+            crystalsCollected++;
+            playSound('collect');
+            updateProgress();
+            showNotification('Crystal Illuminated!');
+
+            // Check win condition
+            if (crystalsCollected >= totalCrystals) {
+                setTimeout(() => {
+                    gameWon = true;
+                    playSound('win');
+                    showVictory();
+                }, 1000);
+            }
+        }
+
+        function activateSwitch(switchData) {
+            if (switchData.activated) return;
+
+            switchData.activated = true;
+            switchData.mesh.material = materials.switch;
+            switchData.ring.material.opacity = 0.8;
+            
+            playSound('switch');
+
+            // Activate corresponding platforms based on switch ID
+            platforms.forEach(platform => {
+                if (platform.id && platform.id.includes(switchData.id.substring(0, 3))) {
+                    platform.active = true;
+                }
+            });
+
+            showNotification('Path Activated!');
+        }
+
+        function updateProgress() {
+            document.getElementById('crystals-collected').textContent = `${crystalsCollected} / ${totalCrystals}`;
+            document.getElementById('progress-fill').style.width = `${(crystalsCollected / totalCrystals) * 100}%`;
+        }
+
+        function showNotification(text) {
+            const notification = document.getElementById('notification');
+            notification.textContent = text;
+            notification.classList.add('visible');
+            setTimeout(() => notification.classList.remove('visible'), 2000);
+        }
+
+        function showVictory() {
+            document.getElementById('hud').style.display = 'none';
+            document.getElementById('victoryScreen').style.display = 'flex';
+
+            // Light up all crystals
+            crystals.forEach(c => {
+                if (!c.collected) {
+                    c.collected = true;
+                    c.mesh.material = materials.crystal;
+                    c.mesh.material.emissiveIntensity = 1;
+                    c.light.intensity = 3;
+                }
+            });
+        }
+
+        // Physics and collision
+        function checkCollision(newPos) {
+            const playerBox = new THREE.Box3(
+                new THREE.Vector3(newPos.x - player.radius, newPos.y - player.height, newPos.z - player.radius),
+                new THREE.Vector3(newPos.x + player.radius, newPos.y, newPos.z + player.radius)
+            );
+
+            // Check platforms
+            for (const platform of platforms) {
+                const platformBox = new THREE.Box3().setFromObject(platform.mesh);
+                if (playerBox.intersectsBox(platformBox)) {
+                    return true;
+                }
+            }
+
+            // Check ground
+            if (newPos.y < player.height) {
+                return true;
+            }
+
+            return false;
+        }
+
+        function updatePlayer(delta) {
+            // Input direction
+            const direction = new THREE.Vector3();
+            const forward = new THREE.Vector3();
+            const right = new THREE.Vector3();
+
+            camera.getWorldDirection(forward);
+            forward.y = 0;
+            forward.normalize();
+            right.crossVectors(forward, new THREE.Vector3(0, 1, 0));
+
+            if (moveState.forward) direction.add(forward);
+            if (moveState.backward) direction.sub(forward);
+            if (moveState.left) direction.sub(right);
+            if (moveState.right) direction.add(right);
+
+            if (direction.length() > 0) {
+                direction.normalize();
+                
+                // Try horizontal movement
+                const newPos = player.position.clone();
+                newPos.x += direction.x * player.speed * delta;
+                
+                if (!checkCollision(newPos)) {
+                    player.position.x = newPos.x;
+                }
+
+                newPos.set(player.position.x, player.position.y, player.position.z + direction.z * player.speed * delta);
+                
+                if (!checkCollision(newPos)) {
+                    player.position.z = newPos.z;
+                }
+            }
+
+            // Gravity
+            player.velocity.y -= player.gravity * delta;
+            const newPos = player.position.clone();
+            newPos.y += player.velocity.y * delta;
+
+            // Ground check
+            if (newPos.y <= player.height) {
+                newPos.y = player.height;
+                player.velocity.y = 0;
+                player.onGround = true;
+            }
+
+            player.position.copy(newPos);
+
+            // Check nearby interactables
+            nearbyInteractable = null;
+            const interactDist = 4;
+
+            for (const crystal of crystals) {
+                if (!crystal.collected && player.position.distanceTo(crystal.mesh.position) < interactDist) {
+                    nearbyInteractable = { type: 'crystal', data: crystal };
+                    break;
+                }
+            }
+
+            if (!nearbyInteractable) {
+                for (const switchData of switches) {
+                    if (!switchData.activated && player.position.distanceTo(switchData.position) < interactDist) {
+                        nearbyInteractable = { type: 'switch', data: switchData };
+                        break;
+                    }
+                }
+            }
+
+            // Update hint
+            const hint = document.getElementById('interaction-hint');
+            if (nearbyInteractable) {
+                hint.classList.add('visible');
+            } else {
+                hint.classList.remove('visible');
+            }
+        }
+
+        // Update world
+        let time = 0;
+        function updateWorld(delta) {
+            time += delta;
+
+            // Animate platforms
+            platforms.forEach(platform => {
+                if (platform.active) {
+                    const offset = time * platform.speed + platform.offset;
+                    const t = (Math.sin(offset) + 1) / 2;
+                    
+                    if (platform.axis === 'y') {
+                        platform.mesh.position.y = platform.startPos.y + (platform.endPos.y - platform.startPos.y) * t;
+                    }
+                }
+            });
+
+            // Animate crystals
+            crystals.forEach(crystal => {
+                crystal.mesh.rotation.y += delta;
+                crystal.mesh.position.y = crystal.baseY + Math.sin(time * 2) * 0.3;
+            });
+
+            // Animate light orbs
+            lightOrbs.forEach((orb, i) => {
+                orb.mesh.position.y = orb.baseY + Math.sin(time * 1.5 + i) * 0.3;
+                orb.light.intensity = 0.5 + Math.sin(time * 2 + i) * 0.2;
+            });
+
+            // Animate switches
+            switches.forEach(sw => {
+                if (!sw.activated) {
+                    sw.ring.material.opacity = 0.2 + Math.sin(time * 3) * 0.1;
+                }
+            });
+
+            // Update camera position
+            camera.position.copy(player.position);
+            camera.position.y += 0.5;
+        }
+
+        // Main update
+        function update() {
+            const delta = Math.min(0.05, 1/60);
+            updatePlayer(delta);
+            updateWorld(delta);
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            update();
+            renderer.render(scene, camera);
+        }
+
+        // Game start
+        function startGame() {
+            console.log('startGame called');
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+
+            initAudio();
+            console.log('Audio initialized');
+            createWorld();
+            console.log('World created');
+            setupLighting();
+            setupControls();
+            console.log('Controls set up');
+
+            gameStarted = true;
+            console.log('Game started!');
+            canvas.requestPointerLock();
+        }
+
+        // Restart game
+        function restartGame() {
+            location.reload();
+        }
+
+        // Event listeners
+        document.getElementById('startScreen').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            startGame();
+        });
+        document.getElementById('startBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            startGame();
+        });
+        document.getElementById('restartBtn').addEventListener('click', restartGame);
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
